@@ -106,7 +106,12 @@ let
       x = (puzzleWidth puzzle) - 1;
       y = 0;
     };
-    
+  startTopRightBottomLeft = puzzle:
+    {
+      x = (puzzleWidth puzzle) - 1;      
+      y = 0;
+    };   
+
   # takes in the puzzle input, the current "position"
   # returns the next position
   # {
@@ -187,6 +192,35 @@ let
     builtins.trace "diagonal=${builtins.toString result}"
     result;
 
+   topRightBottomLeftIncFn = puzzle: {x,y}: 
+     let
+      isBottomHalf = bottomHalf {inherit x y;};
+      
+      nextx = 
+        if isBottomHalf then
+          if (y == (num_rows - 1)) then 0 else x + 1
+        else
+          if x == lastColumnIndex then (lib.max (x - (y + 1)) 0) else x + 1;
+      
+      nexty = 
+        if isBottomHalf then
+          if (y == num_rows - 1) then 
+            (lastColumnIndex - x) + 1
+          else
+            y + 1        
+        else
+          if (x == lastColumnIndex) then 0 else y + 1;
+
+      result = {
+        nextPos = {x=nextx; y=nexty;};
+        newLine = if isBottomHalf then (y == num_rows - 1) else (x == lastColumnIndex);
+        isEnd = (x == 0) && (y == builtins.length puzzle - 1);
+        __toString = self: "[dNUPIncFn isBottom=${boolToString isBottomHalf} num_rows=${builtins.toString num_rows} curX=${builtins.toString x} curY=${builtins.toString y} nextPos=${builtins.toString self.nextPos.x},${builtins.toString self.nextPos.y} newLine=${boolToString self.newLine} isEnd=${boolToString self.isEnd}]";
+      };
+    in
+    builtins.trace "diagonal=${builtins.toString result}"
+    result;
+
     
   puzzleWidth = puzzle: 
     builtins.stringLength (builtins.head puzzle);
@@ -198,8 +232,12 @@ let
   # manipulations
   #
   origPuzzle = getLinesFromFile ./test_input_part1;
+
+  bottomHalf' = {x,y,width}: y <= width - x;
+   
 in
-  genPuzzleVariant origPuzzle startTopLeftBottomRight charGenFn topLeftBottomRightIncFn  
+  #genPuzzleVariant origPuzzle startTopLeftBottomRight charGenFn topLeftBottomRightIncFn  
+  bottomHalf' {x=0; y=0;}
   # {
   #   ltRt = origPuzzle;
   #   rTLt = genPuzzleVariant origPuzzle startRtLt nextCharGen rTLtIncFn;

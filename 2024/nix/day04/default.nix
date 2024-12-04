@@ -263,6 +263,92 @@ let
 
   sum = l: builtins.foldl' (acc: n: n + acc) 0 l;
   part1solve = sum (map scanXmasLine allWaysFlattened);
+
+  allPos = size: 
+    builtins.foldl' (acc: yPos: 
+        acc ++ builtins.genList (p: {x=p; y=yPos;}) size
+      ) 
+      []
+      (builtins.genList (x: x) size);
+
+  letterGrid = size: map (pos: 
+    {
+      inherit (pos) x y;
+      letter = (getXY origPuzzle pos);
+    }) 
+    (allPos size); 
+    
+  legalPos = {x,y}: size:
+    x >= 0 && x <= (size - 1) && y >= 0 && y <= (size - 1);
+
+  topLeft = {x,y}: origPuzzle: 
+    let 
+      newPos = {x=(x - 1); y=(y - 1);};
+      size = builtins.length origPuzzle;
+      c = 
+        if (legalPos newPos size) then
+          getXY origPuzzle newPos 
+        else
+          ".";
+    in
+      c;
+  topRight = {x,y}: origPuzzle: 
+    let 
+      newPos = {x=(x + 1); y=(y - 1);};
+      size = builtins.length origPuzzle;
+      c = 
+        if (legalPos newPos size) then
+          getXY origPuzzle newPos 
+        else
+          ".";
+    in
+      #builtins.trace "topRight: posX=${builtins.toString x} posY=${builtins.toString y} c=${c}"
+      c;
+
+  bottomLeft = {x,y}: origPuzzle: 
+    let 
+      newPos = {x=(x - 1); y=(y + 1);};
+      size = builtins.length origPuzzle;
+      c = 
+        if (legalPos newPos size) then
+          getXY origPuzzle newPos 
+        else
+          ".";
+    in
+      c;
+  bottomRight = {x,y}: origPuzzle: 
+    let 
+      newPos = {x=(x + 1); y=(y + 1);};
+      size = builtins.length origPuzzle;
+      c = 
+        if (legalPos newPos size) then
+          getXY origPuzzle newPos 
+        else
+          ".";
+    in
+      c;
+
+  allAPos = builtins.filter ({x,y,letter}: letter == "A") (letterGrid (puzzleWidth origPuzzle));
+
+  aboutPos = {x,y}: origPuzzle: 
+    (topLeft {inherit x y;} origPuzzle) + 
+    (topRight {inherit x y;} origPuzzle) +
+    (bottomLeft {inherit x y;} origPuzzle) +
+    (bottomRight {inherit x y;} origPuzzle);
+
+  isAMas = {x,y}: origPuzzle:
+    let 
+      aboutString = aboutPos {inherit x y;} origPuzzle;
+    in
+      # builtins.trace "pos=${builtins.toString x},${builtins.toString y}--${aboutString}"
+      (aboutString == "MSMS") ||  
+      (aboutString == "MMSS") ||  
+      (aboutString == "SMSM") ||  
+      (aboutString == "SSMM");
+
+  countBooleans = l: sum (map (e: if e then 1 else 0) l); 
 in
-  part1solve
-  
+  {
+    part1 = part1solve;
+    part2 = countBooleans (map ({letter,x,y}: isAMas {inherit x y;} origPuzzle) allAPos);
+  }

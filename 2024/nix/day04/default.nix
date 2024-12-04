@@ -4,7 +4,7 @@ let
   # utility functions
   #
   boolToString = b: if b then "true" else "false";
-  
+  bottomHalf = {x,y}: y >= x;  
   #
   # pure functions
   #
@@ -35,56 +35,52 @@ let
     in
       lib.strings.substring x 1 row;
 
-  # incFn knows how to increment the xy position for the next character
-  # the incFn takes in the puzzle input, the current "position"
-  # returns the next character and next position
+  # functions tells you about the character in the current position
+  # and gives you the x,y for the next position
   # {
-  #   nextChar = "X";
+  #   char = "X";
   #   nextPos = {x=3; y=0;};
   #   newLine = false;
   #   isEnd = false;
   # }
-  nextCharGen = puzzle: incFn: {x,y}: 
+  charGenFn = puzzle: incFn: {x,y}: 
     let
-      next = incFn puzzle {inherit x y;};
+      curCharInfo = incFn puzzle {inherit x y;};
       result = {
-        nextChar = getXY puzzle next.nextPos;
-        inherit (next) nextPos newLine isEnd;
-        __toString = self: "[charGen nextChar=${self.nextChar} nextPos=${builtins.toString self.nextPos.x},${builtins.toString self.nextPos.y} newLine=${boolToString self.newLine} isEnd=${boolToString self.isEnd}]";
+        char = getXY puzzle {inherit x y;};
+        inherit (curCharInfo) nextPos newLine isEnd;
+        __toString = self: "[charGenFn nextChar=${self.char} nextPos=${builtins.toString self.nextPos.x},${builtins.toString self.nextPos.y} newLine=${boolToString self.newLine} isEnd=${boolToString self.isEnd}]";
       };
     in
       result;
       
-  genPuzzleVariant = origPuzzle: startPosFn: nextCharGen: incFn:
+  # charGen that returns us the currentCharacter from position passed in
+  # along with flags for the character (new line, end, next pos)
+  genPuzzleVariant = origPuzzle: startPosFn: charGenFn: incFn:
     let
       startPos = startPosFn origPuzzle;
-      startChar = getXY origPuzzle startPos;
-      first = nextCharGen origPuzzle incFn startPos;
-      initialList = 
-        if first.newLine then 
-          [startChar] ++ [first.nextChar] 
-        else
-          [(startChar + first.nextChar)];
+      startCharInfo = charGenFn origPuzzle incFn startPos;
+      initialList = [startCharInfo.char] ;
     in
-      builtins.trace "genPuzzleVariant.first=${builtins.toString first}" 
-      (genPuzzleVariantHelper origPuzzle initialList nextCharGen incFn first);
+      #builtins.trace "startCharInfo=${builtins.toString startCharInfo} initialList=${builtins.toString initialList}" 
+      (genPuzzleVariantHelper origPuzzle initialList charGenFn incFn startCharInfo);
 
-  genPuzzleVariantHelper = origPuzzle: updatedPuzzle: nextCharGen: incFn: {nextChar, nextPos, newLine, isEnd, ...}:
+  genPuzzleVariantHelper = origPuzzle: updatedPuzzle: charGenFn: incFn: {char, nextPos, newLine, isEnd, ...}:
   if isEnd then
     updatedPuzzle
   else
     let
-      updatedChar = nextCharGen origPuzzle incFn nextPos; 
+      updatedCharInfo = charGenFn origPuzzle incFn nextPos; 
       currentString = lib.last updatedPuzzle; 
-      updatedString = currentString + updatedChar.nextChar;
+      updatedString = currentString + updatedCharInfo.char;
 
       newPuzzle = if newLine then
-        updatedPuzzle ++ [updatedChar.nextChar]
+        updatedPuzzle ++ [updatedCharInfo.char]
       else
         (lib.init updatedPuzzle) ++ [updatedString];
     in
-      builtins.trace "updatedChar=${builtins.toString updatedChar}, newPuzzle=${builtins.toString newPuzzle}"
-      (genPuzzleVariantHelper origPuzzle newPuzzle nextCharGen incFn updatedChar);
+      #builtins.trace "updatedCharInfo=${builtins.toString updatedCharInfo}, newPuzzle=${builtins.toString newPuzzle}"
+      (genPuzzleVariantHelper origPuzzle newPuzzle charGenFn incFn updatedCharInfo);
       
   # 
   # puzzle variants code
@@ -161,18 +157,34 @@ let
     result;
 
    topLeftBottomRightIncFn = puzzle: {x,y}: 
-    let
+     let
       lastColumnIndex = (puzzleWidth puzzle) - 1;
-      nextx = if x == lastColumnIndex then (lib.max (x - (y + 1)) 0) else x + 1;
-      nexty = if (x == lastColumnIndex) then 0 else y + 1;
-      result = rec {
+      num_rows = builtins.length puzzle;
+      isBottomHalf = bottomHalf {inherit x y;};
+      
+      nextx = 
+        if isBottomHalf then
+          if (y == (num_rows - 1)) then 0 else x + 1
+        else
+          if x == lastColumnIndex then (lib.max (x - (y + 1)) 0) else x + 1;
+      
+      nexty = 
+        if isBottomHalf then
+          if (y == num_rows - 1) then 
+            (lastColumnIndex - x) + 1
+          else
+            y + 1        
+        else
+          if (x == lastColumnIndex) then 0 else y + 1;
+
+      result = {
         nextPos = {x=nextx; y=nexty;};
-        newLine = nextx == lastColumnIndex;
-        isEnd = nextx == 0;
-        __toString = self: "[dNUPIncFn curX=${builtins.toString x} curY=${builtins.toString y} nextPos=${builtins.toString self.nextPos.x},${builtins.toString self.nextPos.y} newLine=${boolToString self.newLine} isEnd=${boolToString self.isEnd}]";
+        newLine = if isBottomHalf then (y == num_rows - 1) else (x == lastColumnIndex);
+        isEnd = (x == 0) && (y == builtins.length puzzle - 1);
+        __toString = self: "[dNUPIncFn isBottom=${boolToString isBottomHalf} num_rows=${builtins.toString num_rows} curX=${builtins.toString x} curY=${builtins.toString y} nextPos=${builtins.toString self.nextPos.x},${builtins.toString self.nextPos.y} newLine=${boolToString self.newLine} isEnd=${boolToString self.isEnd}]";
       };
     in
-    #builtins.trace "diagonal=${builtins.toString result}"
+    builtins.trace "diagonal=${builtins.toString result}"
     result;
 
     
@@ -187,7 +199,7 @@ let
   #
   origPuzzle = getLinesFromFile ./test_input_part1;
 in
-  genPuzzleVariant origPuzzle startTopLeftBottomRight nextCharGen topLeftBottomRightIncFn  
+  genPuzzleVariant origPuzzle startTopLeftBottomRight charGenFn topLeftBottomRightIncFn  
   # {
   #   ltRt = origPuzzle;
   #   rTLt = genPuzzleVariant origPuzzle startRtLt nextCharGen rTLtIncFn;

@@ -5,6 +5,8 @@ let
   #
   boolToString = b: if b then "true" else "false";
   bottomHalf = {x,y}: y >= x;  
+  bottomHalf' = {x,y,width}: y >= width - 1 - x;
+
   #
   # pure functions
   #
@@ -86,21 +88,21 @@ let
   # puzzle variants code
   #
   # returns the starting position for the puzzle assuming "RtLt"
-  startRtLt = puzzle: 
-    {
-      x = (puzzleWidth puzzle) - 1; 
-      y = 0;
-    };
+  # startRtLt = puzzle: 
+  #   {
+  #     x = (puzzleWidth puzzle) - 1; 
+  #     y = 0;
+  #   };
   startUpDn = puzzle:
     {
       x = 0;
       y = 0;
     };
-  startDnUp = puzzle:
-    {
-      x = 0;
-      y = (puzzleHeight puzzle) - 1;
-    };
+  # startDnUp = puzzle:
+  #   {
+  #     x = 0;
+  #     y = (puzzleHeight puzzle) - 1;
+  #   };
   startTopLeftBottomRight = puzzle:
     {
       x = (puzzleWidth puzzle) - 1;
@@ -108,7 +110,7 @@ let
     };
   startTopRightBottomLeft = puzzle:
     {
-      x = (puzzleWidth puzzle) - 1;      
+      x = 0;      
       y = 0;
     };   
 
@@ -119,17 +121,17 @@ let
   #   newLine = false;
   #   isEnd = false;
   # }
-  rTLtIncFn = puzzle: {x,y}: 
-    let
-      nextx = if x == 0 then ((puzzleWidth puzzle) - 1) else x - 1; 
-      nexty = if x == 0 then y + 1 else y;
-      last_row_num = (builtins.length puzzle) - 1;
-    in
-    rec {
-      nextPos = {x=nextx; y=nexty;};
-      newLine = nextx == 0;
-      isEnd = (y == last_row_num) && newLine;
-    };
+  # rTLtIncFn = puzzle: {x,y}: 
+  #   let
+  #     nextx = if x == 0 then ((puzzleWidth puzzle) - 1) else x - 1; 
+  #     nexty = if x == 0 then y + 1 else y;
+  #     last_row_num = (builtins.length puzzle) - 1;
+  #   in
+  #   rec {
+  #     nextPos = {x=nextx; y=nexty;};
+  #     newLine = nextx == 0;
+  #     isEnd = (y == last_row_num) && newLine;
+  #   };
 
   uPDnIncFn = puzzle: {x,y}: 
     let
@@ -140,26 +142,26 @@ let
     in
     rec {
       nextPos = {x=nextx; y=nexty;};
-      newLine = nexty == lastRowIndex;
+      newLine = y == lastRowIndex;
       isEnd = (x == lastColumnIndex) && newLine;
       __toString = self: "[uPDnIncFn nextPos=${builtins.toString self.nextPos.x},${builtins.toString self.nextPos.y} newLine=${boolToString self.newLine} isEnd=${boolToString self.isEnd}]";
     };
 
-  dNUPIncFn = puzzle: {x,y}: 
-    let
-      lastColumnIndex = (puzzleWidth puzzle) - 1;
-      lastRowIndex = 0;
-      nextx = if y == lastRowIndex then x+1 else x;
-      nexty = if y == lastRowIndex then ((puzzleHeight puzzle) - 1) else y - 1;
-      result = rec {
-        nextPos = {x=nextx; y=nexty;};
-        newLine = nexty == lastRowIndex;
-        isEnd = (x == lastColumnIndex) && newLine;
-        __toString = self: "[dNUPIncFn nextPos=${builtins.toString self.nextPos.x},${builtins.toString self.nextPos.y} newLine=${boolToString self.newLine} isEnd=${boolToString self.isEnd}]";
-      };
-    in
-    builtins.trace "dNUPIncFc=${builtins.toString result}"
-    result;
+  # dNUPIncFn = puzzle: {x,y}: 
+  #   let
+  #     lastColumnIndex = (puzzleWidth puzzle) - 1;
+  #     lastRowIndex = 0;
+  #     nextx = if y == lastRowIndex then x+1 else x;
+  #     nexty = if y == lastRowIndex then ((puzzleHeight puzzle) - 1) else y - 1;
+  #     result = rec {
+  #       nextPos = {x=nextx; y=nexty;};
+  #       newLine = nexty == lastRowIndex;
+  #       isEnd = (x == lastColumnIndex) && newLine;
+  #       __toString = self: "[dNUPIncFn nextPos=${builtins.toString self.nextPos.x},${builtins.toString self.nextPos.y} newLine=${boolToString self.newLine} isEnd=${boolToString self.isEnd}]";
+  #     };
+  #   in
+  #   #builtins.trace "dNUPIncFc=${builtins.toString result}"
+  #   result;
 
    topLeftBottomRightIncFn = puzzle: {x,y}: 
      let
@@ -189,36 +191,38 @@ let
         __toString = self: "[dNUPIncFn isBottom=${boolToString isBottomHalf} num_rows=${builtins.toString num_rows} curX=${builtins.toString x} curY=${builtins.toString y} nextPos=${builtins.toString self.nextPos.x},${builtins.toString self.nextPos.y} newLine=${boolToString self.newLine} isEnd=${boolToString self.isEnd}]";
       };
     in
-    builtins.trace "diagonal=${builtins.toString result}"
+    #builtins.trace "diagonal=${builtins.toString result}"
     result;
 
    topRightBottomLeftIncFn = puzzle: {x,y}: 
      let
-      isBottomHalf = bottomHalf {inherit x y;};
+      numRows = builtins.length puzzle;
+      width = puzzleWidth puzzle;
+      isBottomHalf = bottomHalf' {inherit x y; width=width;};
       
       nextx = 
         if isBottomHalf then
-          if (y == (num_rows - 1)) then 0 else x + 1
+          if y == numRows - 1 then width - 1 else x - 1
         else
-          if x == lastColumnIndex then (lib.max (x - (y + 1)) 0) else x + 1;
+          if x == 0 then y + 1 else x - 1;
       
       nexty = 
         if isBottomHalf then
-          if (y == num_rows - 1) then 
-            (lastColumnIndex - x) + 1
+          if (y == numRows - 1) then 
+            x + 1
           else
             y + 1        
         else
-          if (x == lastColumnIndex) then 0 else y + 1;
+          if (x == 0) then 0 else y + 1;
 
       result = {
         nextPos = {x=nextx; y=nexty;};
-        newLine = if isBottomHalf then (y == num_rows - 1) else (x == lastColumnIndex);
-        isEnd = (x == 0) && (y == builtins.length puzzle - 1);
-        __toString = self: "[dNUPIncFn isBottom=${boolToString isBottomHalf} num_rows=${builtins.toString num_rows} curX=${builtins.toString x} curY=${builtins.toString y} nextPos=${builtins.toString self.nextPos.x},${builtins.toString self.nextPos.y} newLine=${boolToString self.newLine} isEnd=${boolToString self.isEnd}]";
+        newLine = if isBottomHalf then (y == numRows - 1) else (x == 0);
+        isEnd = (y == numRows - 1) && (x == builtins.length puzzle - 1);
+        __toString = self: "[isBottom=${boolToString isBottomHalf} num_rows=${builtins.toString numRows} curX=${builtins.toString x} curY=${builtins.toString y} nextPos=${builtins.toString self.nextPos.x},${builtins.toString self.nextPos.y} newLine=${boolToString self.newLine} isEnd=${boolToString self.isEnd}]";
       };
     in
-    builtins.trace "diagonal=${builtins.toString result}"
+    #builtins.trace "diagonal=${builtins.toString result}"
     result;
 
     
@@ -231,17 +235,34 @@ let
   #
   # manipulations
   #
-  origPuzzle = getLinesFromFile ./test_input_part1;
+  origPuzzle = getLinesFromFile ./input_part1;
 
-  bottomHalf' = {x,y,width}: y <= width - x;
-   
+  reverseString = s: 
+    if s == "" then
+      s
+    else
+      let
+        len = builtins.stringLength s;
+        firstChar = builtins.substring 0 1 s;      
+        rest = builtins.substring 1 (len - 1) s; 
+      in
+      (reverseString rest) + firstChar;
+
+  allWays =  rec {
+    ltRt = origPuzzle;
+    rTLt = map reverseString origPuzzle;
+    uPDn = genPuzzleVariant origPuzzle startUpDn charGenFn uPDnIncFn;
+    dnUp = map reverseString uPDn;
+    diag1 = genPuzzleVariant origPuzzle startTopRightBottomLeft charGenFn topRightBottomLeftIncFn;
+    diag2 = map reverseString diag1;
+    diag3 = genPuzzleVariant origPuzzle startTopLeftBottomRight charGenFn topLeftBottomRightIncFn; 
+    diag4 = map reverseString diag3;
+  };
+
+  allWaysFlattened = lib.flatten (lib.attrsets.attrValues allWays);
+
+  sum = l: builtins.foldl' (acc: n: n + acc) 0 l;
+  part1solve = sum (map scanXmasLine allWaysFlattened);
 in
-  #genPuzzleVariant origPuzzle startTopLeftBottomRight charGenFn topLeftBottomRightIncFn  
-  bottomHalf' {x=0; y=0;}
-  # {
-  #   ltRt = origPuzzle;
-  #   rTLt = genPuzzleVariant origPuzzle startRtLt nextCharGen rTLtIncFn;
-  #   uPDn = genPuzzleVariant origPuzzle startUpDn nextCharGen uPDnIncFn;
-  #   dNUp = genPuzzleVariant origPuzzle startDnUp nextCharGen dNUPIncFn;
-  # }
-
+  part1solve
+  

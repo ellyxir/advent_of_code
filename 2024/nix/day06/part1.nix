@@ -137,7 +137,6 @@ let
       # allow walking off map
       updatedGuardPos = if (!isWall) then aheadPos else gridState.guardPos;
       updatedGuard = if isWall then turn90 guard else guard;
-      updatedGuardDir = getDirection updatedGuard;
 
       updatedGrid = 
         if updatedGuardPos != gridState.guardPos then

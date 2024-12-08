@@ -1,7 +1,7 @@
 with builtins;
 with import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/689fed12a013f56d4c4d3f612489634267d86529.tar.gz") {};
 let
-  sum = l: foldl' (acc: e: e + acc) 0 l;
+  sum = l: builtins.foldl' (acc: e: e + acc) 0 l;
   
   # how many times is c in the string s
   countChar = s: c: 
@@ -153,16 +153,14 @@ let
       {grid = updatedGrid; guardPos = updatedGuardPos; guardInMap = (isValidPos updatedGuardPos gridState.grid);};
 
   # calls ticks until the guard is no longer in the map
-  # returns a list of all the gridStates in reverse order
-  runTicks = gridState: prevGridStates: 
+  runTicks = gridState: prevGridState: 
     if (! gridState.guardInMap) then
-      prevGridStates
+      gridState
     else
       let
         nextState = tick gridState;
       in
-        trace "running tick...iteration=${builtins.toString (builtins.length prevGridStates)}"
-        (runTicks nextState ([nextState] ++ prevGridStates));  
+        runTicks nextState gridState;  
 
   solvePart1 = p:
     let
@@ -170,8 +168,12 @@ let
       grid = getGrid gridFile;
       gridState = getGridState grid; 
       ticks = runTicks gridState [];
-      finalGridState = builtins.head ticks; 
+      finalGridState = ticks; 
     in
       sum (map (e: countChar e "X") finalGridState.grid);
+
+  # in part two, we want to see if the guard ever comes back to the same point 
+  # with the same orientation, that means he's in a loop
+
 in
  solvePart1 ./input

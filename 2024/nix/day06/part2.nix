@@ -198,8 +198,11 @@ let
     let
       gridFile = getGridFile p;
       grid = getGrid gridFile;
-
-      allPos = genPermutations (getGridWidth grid) (getGridHeight grid);
+      gridState = getGridState grid;
+      result = runTicks gridState [];
+      guardPositions = lib.init (map (gridState: gridState.guardPos) result.gridStates); # dont need first starting point
+      allPos = lib.uniqList {inputList = guardPositions;};
+      len = builtins.length allPos;
       loops = builtins.filter 
         ({x,y}: 
           let
@@ -208,7 +211,7 @@ let
             result = runTicks gridState [];
             isLoop = result.isLoop;
           in
-            builtins.trace "tried pos x=${builtins.toString x},y=${builtins.toString y} isLoop=${builtins.toString isLoop}" isLoop
+            builtins.trace "tried pos x=${builtins.toString x},y=${builtins.toString y} isLoop=${builtins.toString isLoop} totalLen=${builtins.toString len}" isLoop
         )
         allPos;
     in

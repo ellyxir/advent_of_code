@@ -44,43 +44,80 @@ let
       in
         calculate ([val] ++ rest);
 
-    
-  # returns a list of equations, an equation is a list of operators and numbers
-  genEquations = numbers:
-  if numbers == [] then
-    [ [] ]
-  else if (builtins.length numbers) == 1 then
-    [ numbers ] 
-  else
-    let
-      top = builtins.head numbers;
-      rest = builtins.tail numbers;
-      retVal = builtins.foldl' (acc: e: 
-        [([top] ++ [builtins.mul] ++ e )] ++ 
-        [([top] ++ [builtins.add] ++ e )] ++ 
-        [([top] ++ [concat] ++ e )] ++ 
-        acc) [] (genEquations rest);
-    in
-    retVal;
-
-  solveEquation = {total, numbers}:
-    let
-      equations = genEquations numbers;
-      allEq = map calculate equations;
-      totals = map (e: e == total) allEq;
-    in
-    if (builtins.any (e: e) totals) then
-      [total]
+  # returns first equation that solves for total or [] if none found
+  solveEquation = {total, numbers, curEq, operators}:
+    # builtins.trace "solveEquation=curEq=${builtins.toString curEq}" (
+    if numbers == [] then
+      # we've reached the end, is curEq eq to total
+      if total == (calculate curEq) then
+        curEq
+      else
+        []
+    else if (builtins.length numbers) == 1 then
+      solveEquation {
+        inherit total operators;
+        numbers = [];
+        curEq = curEq ++ [(builtins.head numbers)];
+      }
+    else if ((builtins.length curEq) > 1) && (calculate (lib.init curEq) > total) then
+      []
     else
-      [];
-    
-        
+      # more numbers left
+      let
+        top = builtins.head numbers;
+        results = builtins.foldl' 
+          (acc: eq: 
+            let
+              iterResult = solveEquation {
+                inherit total operators;  
+                numbers = builtins.tail numbers;
+                curEq = curEq ++ [top] ++ [eq]; 
+              };
+            in
+            if iterResult == [] then
+              acc
+            else
+              iterResult
+          )
+          []
+          operators;
+      in
+      results;
+      
   solvePart1 = p:
     let
       f = readFile p;
       puzzle = getPuzzle f;
-      allEquations = map solveEquation puzzle;
-    in
-    sum (lib.flatten allEquations);
+      totals = map (e: 
+        let
+          solList = solveEquation {total = e.total; numbers = e.numbers; curEq=[]; operators=[builtins.add builtins.mul];};
+        in
+          if (lib.flatten solList) == [] then
+            0
+          else
+            e.total
+        ) puzzle;
+      in
+      sum totals;
+
+  solvePart2 = p:
+    let
+      f = readFile p;
+      puzzle = getPuzzle f;
+      totals = map (e: 
+        let
+          solList = builtins.trace "solving: ${builtins.toString e.numbers}" (solveEquation {total = e.total; numbers = e.numbers; curEq=[]; operators=[builtins.add builtins.mul concat];});
+        in
+          if (lib.flatten solList) == [] then
+            0
+          else
+            e.total
+        ) puzzle;
+      in
+      sum totals;
+
 in
-solvePart1 ./new_input
+{
+  part1 = solvePart1 ./input;
+  part2 = solvePart2 ./input;
+}

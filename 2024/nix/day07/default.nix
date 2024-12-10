@@ -18,46 +18,69 @@ let
     in
     p3;
 
-  calculate = eq: 
-    true;
+  sum = l: builtins.foldl' (acc: e: e + acc) 0 l;
+
+  # takes in two positive integers, concatenates them
+  concat = n: m: 
+    let
+      ns = if (n == 0) then "" else builtins.toString n;
+      ms = if (m == 0) then "" else builtins.toString m;
+      nsms = ns + ms;
+    in
+      lib.toInt nsms;
+      
+  calculate = l: 
+    if l == [] then
+      0
+    else if (builtins.length l) == 1 then
+      builtins.head l
+    else
+      let
+        left = builtins.head l;
+        op = builtins.elemAt l 1;
+        right = builtins.elemAt l 2;
+        rest = lib.lists.sublist 3 ((builtins.length l) - 3) l;
+        val = op left right;        
+      in
+        calculate ([val] ++ rest);
+
     
-  # return [+ * + +], ordered list of operations that when applied
-  # equals the total passed in
-  solveEquation = {total, numbers}: 
+  # returns a list of equations, an equation is a list of operators and numbers
+  genEquations = numbers:
+  if numbers == [] then
+    [ [] ]
+  else if (builtins.length numbers) == 1 then
+    [ numbers ] 
+  else
     let
       top = builtins.head numbers;
       rest = builtins.tail numbers;
+      retVal = builtins.foldl' (acc: e: 
+        [([top] ++ [builtins.mul] ++ e )] ++ 
+        [([top] ++ [builtins.add] ++ e )] ++ 
+        [([top] ++ [concat] ++ e )] ++ 
+        acc) [] (genEquations rest);
     in
-    solveEquationHelper { inherit total; numbers = rest; trying = [top]; };
-       
-  # trying is the list of operators and numbers that we are currently trying
-  # [ 3 * 5 + 2 + 5 ]
-  solveEquationHelper = {total, numbers, trying}:
-  let
-    top = builtins.head numbers;
-    rest = builtins.tail numbers;
-    addSol = solveEquationHelper {
-      inherit total;
-      trying = (trying ++ ["add"] ++ [top]);
-      numbers = rest;
-    };
-    mulSol = solveEquationHelper {
-      inherit total;
-      trying = (trying ++ ["mul"] ++ [top]);        
-      numbers = rest;
-    };
-    solve = true;
-  in
-    if (numbers == []) && solved then
-      ([addSol] ++ [mulSol])
+    retVal;
+
+  solveEquation = {total, numbers}:
+    let
+      equations = genEquations numbers;
+      allEq = map calculate equations;
+      totals = map (e: e == total) allEq;
+    in
+    if (builtins.any (e: e) totals) then
+      [total]
     else
       [];
-      
+    
+        
   solvePart1 = p:
     let
       f = readFile p;
       puzzle = getPuzzle f;
+      allEquations = map solveEquation puzzle;
     in
-    map (eq: solveEquation eq) puzzle;
+    sum (lib.flatten allEquations);
 in
-solvePart1 ./test_input
+solvePart1 ./new_input
